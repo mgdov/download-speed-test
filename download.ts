@@ -1,14 +1,20 @@
 #!/usr/bin/env node
-'use strict';
+import { performance } from 'node:perf_hooks';
 
-const { performance } = require('node:perf_hooks');
+interface Options { url: string; timeoutMs: number }
+interface DownloadResult { bytes: number; seconds: number }
+interface Measurement { totalBytes: number; totalSeconds: number }
+
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 const REQUEST_COUNT = 10;
 
-function parseArgs(args) {
+export function parseArgs(args: string[]): Options | null {
   if (args.length === 1 && ['--help', '-h'].includes(args[0])) return null;
   if (args.length !== 1 && !(args.length === 3 && args[1] === '--timeout')) {
-    throw new Error('Usage: node download.js <http(s)-url> [--timeout <seconds>]');
+    throw new Error('Usage: node dist/download.js <http(s)-url> [--timeout <seconds>]');
   }
   const url = new URL(args[0]);
   if (!['http:', 'https:'].includes(url.protocol)) {
@@ -22,7 +28,7 @@ function parseArgs(args) {
   return { url: url.href, timeoutMs };
 }
 
-async function download(url, timeoutMs) {
+export async function download(url: string, timeoutMs: number): Promise<DownloadResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let bytes = 0;
@@ -45,7 +51,7 @@ async function download(url, timeoutMs) {
   }
 }
 
-async function measure(url, timeoutMs = 30000) {
+export async function measure(url: string, timeoutMs = 30000): Promise<Measurement> {
   let totalBytes = 0;
   let totalSeconds = 0;
   for (let i = 1; i <= REQUEST_COUNT; i++) {
@@ -55,14 +61,14 @@ async function measure(url, timeoutMs = 30000) {
       totalBytes += result.bytes;
       totalSeconds += result.seconds;
     } catch (error) {
-      throw new Error(`Request ${i}/${REQUEST_COUNT} failed: ${error.message}`, { cause: error });
+      throw new Error(`Request ${i}/${REQUEST_COUNT} failed: ${message(error)}`, { cause: error });
     }
   }
   if (totalSeconds <= 0) throw new Error('Measured duration must be greater than zero');
   return { totalBytes, totalSeconds };
 }
 
-function formatResult({ totalBytes, totalSeconds }) {
+export function formatResult({ totalBytes, totalSeconds }: Measurement): string {
   return [
     `Completed requests: ${REQUEST_COUNT}`,
     `Total downloaded: ${totalBytes} bytes (${(totalBytes / 1e6).toFixed(3)} MB)`,
@@ -73,26 +79,25 @@ function formatResult({ totalBytes, totalSeconds }) {
   ].join('\n');
 }
 
-async function main() {
-  let options;
+async function main(): Promise<void> {
+  let options: Options | null;
   try {
     options = parseArgs(process.argv.slice(2));
   } catch (error) {
-    console.error(`Error: ${error.message}`);
+    console.error(`Error: ${message(error)}`);
     process.exitCode = 2;
     return;
   }
   if (!options) {
-    console.log('Usage: node download.js <http(s)-url> [--timeout <seconds>]\nNode.js 22+, no dependencies. Default timeout: 30 seconds per complete request.');
+    console.log('Usage: node dist/download.js <http(s)-url> [--timeout <seconds>]\nNode.js 22+, no dependencies. Default timeout: 30 seconds per complete request.');
     return;
   }
   try {
     console.log(formatResult(await measure(options.url, options.timeoutMs)));
   } catch (error) {
-    console.error(`Error: ${error.message}`);
+    console.error(`Error: ${message(error)}`);
     process.exitCode = 1;
   }
 }
 
 if (require.main === module) main();
-module.exports = { parseArgs, download, measure, formatResult };

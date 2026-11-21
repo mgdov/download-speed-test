@@ -1,18 +1,18 @@
-'use strict';
+import { test, type TestContext } from 'node:test';
+import assert from 'node:assert/strict';
+import http, { type RequestListener } from 'node:http';
+import { parseArgs, measure, formatResult } from './download';
 
-const { test } = require('node:test');
-const assert = require('node:assert/strict');
-const http = require('node:http');
-const { parseArgs, measure, formatResult } = require('./download');
-
-async function serverFor(t, handler) {
+async function serverFor(t: TestContext, handler: RequestListener): Promise<string> {
   const server = http.createServer(handler);
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(async () => {
     server.closeAllConnections();
-    await new Promise(resolve => server.close(resolve));
+    await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   });
-  return `http://127.0.0.1:${server.address().port}`;
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  return `http://127.0.0.1:${address.port}`;
 }
 
 test('downloads the complete binary body exactly 10 times sequentially', async t => {
@@ -77,5 +77,5 @@ test('validates CLI arguments', () => {
     assert.throws(() => parseArgs(args));
   }
   assert.equal(parseArgs(['--help']), null);
-  assert.equal(parseArgs(['https://example.com', '--timeout', '2']).timeoutMs, 2000);
+  assert.equal(parseArgs(['https://example.com', '--timeout', '2'])?.timeoutMs, 2000);
 });
