@@ -1,7 +1,6 @@
 import { performance } from 'node:perf_hooks';
 
 async function main(): Promise<void> {
-  // В команде должен быть один аргумент — адрес файла.
   const address = process.argv[2];
   if (!address || process.argv.length !== 3) {
     throw new Error('Запуск: npm start -- "https://site.ru/file.jpg"');
@@ -28,7 +27,6 @@ async function main(): Promise<void> {
       throw new Error(`Запрос ${i}: HTTP ${response.status}`);
     }
 
-    // Читаем всё тело ответа, не сохраняя файл в памяти целиком.
     if (response.body) {
       for await (const chunk of response.body) {
         totalBytes += chunk.byteLength;
