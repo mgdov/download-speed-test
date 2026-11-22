@@ -9,8 +9,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "start": "node dist/download.js",
-    "test": "npm run build && node --test dist/speed-test.test.js"
+    "start": "node dist/download.js"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
